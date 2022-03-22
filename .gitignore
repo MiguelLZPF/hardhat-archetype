@@ -1,0 +1,16 @@
+node_modules
+.env
+coverage
+coverage.json
+ganache-db
+deployments.json
+
+# Hardhat files
+cache
+artifacts
+
+# Types
+# typechain*
+
+# Encripted Wallets
+keystore

@@ -1,0 +1,36 @@
+[
+  {
+    "network": { "name": "unknown", "chainId": 1337 },
+    "smartContracts": {
+      "proxyAdmins": [
+        {
+          "address": "0x8aC971aBdF7F3465E4786aA2E0d3A07f40316c9D",
+          "contractName": "ProxyAdmin",
+          "deployTimestamp": "2021-12-11T18:48:19.000Z",
+          "deployTxHash": "0x3ed3c356805c34f51d9ff39ef5b3d808dc42fb4bf1c27a9bb0225a6fc3656cfa",
+          "byteCodeHash": "0xb6c95581969714bf3ae9659513be2d116eaf93b20677925e82b98bd1777fb78e"
+        }
+      ],
+      "contracts": [
+        {
+          "address": "0x8C53594aCC48AC61349f0338a4cded54C885f7cA",
+          "contractName": "ContractRegistry",
+          "deployTimestamp": "2021-12-11T18:30:35.000Z",
+          "deployTxHash": "0xf051b1bf2df111e71e65d7d45192799dd74893b5ededc139b335079f7da2c8b2",
+          "byteCodeHash": "0xd07759f2747ac95d1f49c3f2250bd1766af78a6c20cedc32cbc402b69e708fba"
+        },
+        {
+          "admin": "0x8aC971aBdF7F3465E4786aA2E0d3A07f40316c9D",
+          "proxy": "0xFC2e876297b446E9AF322d5CFcC7c3e77627510e",
+          "logic": "0x7eaf87789717F81A2ca7497B55F84A7613E0582e",
+          "contractName": "ContractRegistry",
+          "deployTimestamp": "2021-12-11T19:06:27.000Z",
+          "proxyTxHash": "0x672c1b9de01bf2b8c4307a1b23e3802a470c503d31023ceebd2eb45736356709",
+          "logicTxHash": "0x59843463cd86fc5c5f6b0e1b9884dd7d63ae7fb5433e7085502d725d44b10d93",
+          "byteCodeHash": "0xd07759f2747ac95d1f49c3f2250bd1766af78a6c20cedc32cbc402b69e708fba",
+          "upgradeTimestamp": "2021-12-11T19:07:34.000Z"
+        }
+      ]
+    }
+  }
+]
