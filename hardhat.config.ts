@@ -9,7 +9,14 @@ import "hardhat-gas-reporter";
 import "solidity-coverage";
 import { generateWallet, generateWalletBatch } from "./scripts/wallets";
 import { Wallet } from "@ethersproject/wallet";
-import { deploy, deployUpgradeable, upgrade } from "./scripts/deploy";
+import {
+  deploy,
+  deployUpgradeable,
+  deployWithDeployer,
+  initOnChainDeployments,
+  upgrade,
+  upgradeWithDeployer,
+} from "./scripts/deploy";
 import { setGHRE } from "./scripts/utils";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
@@ -137,7 +144,7 @@ task("deploy", "Deploy smart contracts on '--network'")
 
 task("deploy", "Deploy smart contracts on '--network'")
   .addFlag("upgradeable", "Deploy as upgradeable")
-  .addFlag("useDeployer", "Deploy as upgradeable using deployer and registry contracts")
+  .addFlag("onChain", "Deploy as upgradeable using deployer and registry contracts")
   .addPositionalParam(
     "contractName",
     "Name of the contract to deploy",
@@ -158,50 +165,17 @@ task("deploy", "Deploy smart contracts on '--network'")
     types.string
   )
   .addOptionalParam(
-    "args",
-    "Contract initialize function's arguments if any",
-    undefined,
-    types.json
-  )
-  .setAction(
-    async (
-      { upgradeable, useDeployer, contractName, relativePath, password, proxyAdmin, args },
-      hre: HardhatRuntimeEnvironment
-    ) => {
-      args = args ? args : [];
-      const signer = Wallet.fromEncryptedJsonSync(
-        await fs.readFile(ENV.KEYSTORE.root.concat(relativePath)),
-        password
-      ).connect(hre.ethers.provider);
-      setGHRE(hre);
-      if (upgradeable) {
-        if (useDeployer) {
-          await deployUpgradeable(contractName, signer, args, proxyAdmin);
-        } else {
-          await deployUpgradeable(contractName, signer, args, proxyAdmin);
-        }
-      } else {
-        await deploy(contractName, signer, args);
-      }
-    }
-  );
-
-task("upgrade", "Upgrade smart contracts on '--network'")
-  .addPositionalParam(
-    "contractName",
-    "Name of the contract to deploy",
-    "Example_Storage",
-    types.string
-  )
-  .addParam(
-    "relativePath",
-    "Path relative to KEYSTORE_ROOT to store the wallets",
+    "contractDeployer",
+    "Contract Deployer address. Default to ENV.DEPLOY.contractDeplyer.address",
     undefined,
     types.string
   )
-  .addParam("password", "Password to decrypt the wallet")
-  .addOptionalParam("proxy", "Address of the TUP proxy", undefined, types.string)
-  .addOptionalParam("proxyAdmin", "Address of a deloyed Proxy Admin", undefined, types.string)
+  .addOptionalParam(
+    "contractRegistry",
+    "Contract Registry address. Default to ENV.DEPLOY.contractRegistry.address or the deployer's default",
+    undefined,
+    types.string
+  )
   .addOptionalParam(
     "args",
     "Contract initialize function's arguments if any",
@@ -210,7 +184,17 @@ task("upgrade", "Upgrade smart contracts on '--network'")
   )
   .setAction(
     async (
-      { contractName, relativePath, password, proxy, proxyAdmin, args },
+      {
+        upgradeable,
+        onChain,
+        contractName,
+        relativePath,
+        password,
+        proxyAdmin,
+        contractRegistry,
+        contractDeployer,
+        args,
+      },
       hre: HardhatRuntimeEnvironment
     ) => {
       args = args ? args : [];
@@ -219,7 +203,110 @@ task("upgrade", "Upgrade smart contracts on '--network'")
         password
       ).connect(hre.ethers.provider);
       setGHRE(hre);
-      await upgrade(contractName, signer, args, proxy, proxyAdmin);
+      if (onChain) {
+        await deployWithDeployer(contractName, signer, args, contractRegistry, contractDeployer);
+      } else if (upgradeable) {
+        await deployUpgradeable(contractName, signer, args, proxyAdmin);
+      } else {
+        await deploy(contractName, signer, args);
+      }
+    }
+  );
+
+task("upgrade", "Upgrade smart contracts on '--network'")
+  .addFlag("onChain", "Deploy as upgradeable using deployer and registry contracts")
+  .addPositionalParam(
+    "contractName",
+    "Name of the contract to deploy",
+    "Example_Storage",
+    types.string
+  )
+  .addParam(
+    "relativePath",
+    "Path relative to KEYSTORE_ROOT to retreive the wallet",
+    undefined,
+    types.string
+  )
+  .addParam("password", "Password to decrypt the wallet")
+  .addOptionalParam("proxy", "Address of the TUP proxy", undefined, types.string)
+  .addOptionalParam("proxyAdmin", "Address of a deloyed Proxy Admin", undefined, types.string)
+  .addOptionalParam(
+    "contractDeployer",
+    "Contract Deployer address. Default to ENV.DEPLOY.contractDeplyer.address",
+    undefined,
+    types.string
+  )
+  .addOptionalParam(
+    "contractRegistry",
+    "Contract Registry address. Default to ENV.DEPLOY.contractRegistry.address or the deployer's default",
+    undefined,
+    types.string
+  )
+  .addOptionalParam(
+    "args",
+    "Contract initialize function's arguments if any",
+    undefined,
+    types.json
+  )
+  .setAction(
+    async (
+      {
+        onChain,
+        contractName,
+        relativePath,
+        password,
+        proxy,
+        proxyAdmin,
+        contractRegistry,
+        contractDeployer,
+        args,
+      },
+      hre: HardhatRuntimeEnvironment
+    ) => {
+      args = args ? args : [];
+      const signer = Wallet.fromEncryptedJsonSync(
+        await fs.readFile(ENV.KEYSTORE.root.concat(relativePath)),
+        password
+      ).connect(hre.ethers.provider);
+      setGHRE(hre);
+      if (onChain) {
+        await upgradeWithDeployer(contractName, signer, args, contractRegistry, contractDeployer);
+      } else {
+        await upgrade(contractName, signer, args, proxy, proxyAdmin);
+      }
+    }
+  );
+
+task("initOnChainDeployments", "initialize ContractRegistry and/or ContractDeployer on '--network'")
+  .addFlag(
+    "onlyDeployer",
+    "it will only deploy the ContractDeployer and use the ContractRegistry in ENV.DEPLOY.contractRegistry.address or the ContractDeployer's default"
+  )
+  .addParam(
+    "relativePath",
+    "Path relative to KEYSTORE_ROOT to retreive the wallet",
+    undefined,
+    types.string
+  )
+  .addParam("password", "Password to decrypt the wallet")
+  .addOptionalParam(
+    "defaultContractRegistry",
+    "Default Registry address to store in ContractDeployer as default",
+    undefined,
+    types.string
+  )
+  .setAction(
+    async (
+      { onlyDeployer, relativePath, password, defaultContractRegistry },
+      hre: HardhatRuntimeEnvironment
+    ) => {
+      const signer = Wallet.fromEncryptedJsonSync(
+        await fs.readFile(ENV.KEYSTORE.root.concat(relativePath)),
+        password
+      ).connect(hre.ethers.provider);
+      setGHRE(hre);
+      const result = await initOnChainDeployments(signer, onlyDeployer, defaultContractRegistry);
+      console.log("Result: ", result);
     }
   );
 
@@ -273,7 +360,7 @@ const config: HardhatUserConfig = {
     currency: "EUR",
   },
   typechain: {
-    externalArtifacts: ["@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol"],
+    //externalArtifacts: ["@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol"],
   },
 };
 export default config;

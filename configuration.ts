@@ -33,32 +33,25 @@ export const GAS_OPT = {
   },
 };
 
-const DEPLOY = {
+let DEPLOY = {
   deploymentsPath: "deployments.json",
   proxyAdmin: {
     name: "ProxyAdmin",
     address: "0x8aC971aBdF7F3465E4786aA2E0d3A07f40316c9D",
   },
-};
-
-const CONTRACT = {
   contractRegistry: {
     name: "ContractRegistry",
+    address: "0x8aC971aBdF7F3465E4786aA2E0d3A07f40316c9D"
   },
   contractDeployer: {
     name: "ContractDeployer",
+    address: "0x8aC971aBdF7F3465E4786aA2E0d3A07f40316c9D"
   },
-  exampleBallot: {
-    name: "ExampleBallot",
-  },
+};
+
+const CONTRACT = {
   exampleOwner: {
     name: "ExampleOwner",
-  },
-  exampleOwnerV2: {
-    name: "ExampleOwnerV2",
-  },
-  exampleStorage: {
-    name: "ExampleStorage",
   },
 };
 

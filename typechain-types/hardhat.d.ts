@@ -49,6 +49,14 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.TransparentUpgradeableProxy__factory>;
     getContractFactory(
+      name: "ExampleOwner",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ExampleOwner__factory>;
+    getContractFactory(
+      name: "ProxyAdmin",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ProxyAdmin__factory>;
+    getContractFactory(
       name: "ContractDeployer",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.ContractDeployer__factory>;
@@ -56,26 +64,6 @@ declare module "hardhat/types/runtime" {
       name: "ContractRegistry",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.ContractRegistry__factory>;
-    getContractFactory(
-      name: "ExampleBallot",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.ExampleBallot__factory>;
-    getContractFactory(
-      name: "ExampleOwnerV2",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.ExampleOwnerV2__factory>;
-    getContractFactory(
-      name: "ExampleOwner",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.ExampleOwner__factory>;
-    getContractFactory(
-      name: "ExampleStorage",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.ExampleStorage__factory>;
-    getContractFactory(
-      name: "ProxyAdmin",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.ProxyAdmin__factory>;
     getContractFactory(
       name: "IContractDeployer",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -131,6 +119,16 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.TransparentUpgradeableProxy>;
     getContractAt(
+      name: "ExampleOwner",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ExampleOwner>;
+    getContractAt(
+      name: "ProxyAdmin",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ProxyAdmin>;
+    getContractAt(
       name: "ContractDeployer",
       address: string,
       signer?: ethers.Signer
@@ -140,31 +138,6 @@ declare module "hardhat/types/runtime" {
       address: string,
       signer?: ethers.Signer
     ): Promise<Contracts.ContractRegistry>;
-    getContractAt(
-      name: "ExampleBallot",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.ExampleBallot>;
-    getContractAt(
-      name: "ExampleOwnerV2",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.ExampleOwnerV2>;
-    getContractAt(
-      name: "ExampleOwner",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.ExampleOwner>;
-    getContractAt(
-      name: "ExampleStorage",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.ExampleStorage>;
-    getContractAt(
-      name: "ProxyAdmin",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.ProxyAdmin>;
     getContractAt(
       name: "IContractDeployer",
       address: string,

@@ -30,8 +30,11 @@ contract ExampleOwner is Initializable {
   /**
    * @dev Set contract deployer as owner
    */
-  constructor() {
-    owner = msg.sender; // 'msg.sender' is sender of current call, contract deployer for a constructor
+  function initialize(address firstOwner) external initializer {
+    if (firstOwner == address(0)) {
+      firstOwner = msg.sender;
+    }
+    owner = firstOwner; // 'msg.sender' is sender of current call, contract deployer for a constructor
     emit OwnerSet(address(0), owner);
   }
 

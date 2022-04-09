@@ -1,10 +1,10 @@
 import * as fs from "async-file";
 import { ENV } from "../configuration";
-import { GAS_OPT, ghre } from "./utils";
-import { isAddress, keccak256 } from "ethers/lib/utils";
+import { ADDR_ZERO, GAS_OPT, ghre } from "./utils";
+import { isAddress, keccak256, toUtf8Bytes } from "ethers/lib/utils";
 import { TransactionReceipt } from "@ethersproject/providers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { Contract } from "ethers";
+import { Contract, PopulatedTransaction, Wallet } from "ethers";
 import { Signer } from "@ethersproject/abstract-signer";
 import {
   INetworkDeployment,
@@ -13,15 +13,22 @@ import {
   networks,
 } from "../models/Deploy";
 import {
+  ContractDeployer__factory,
+  ContractRegistry,
+  ContractRegistry__factory,
+  IContractDeployer__factory,
+  IContractRegistry,
+  IContractRegistry__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory as TUP__factory,
 } from "../typechain-types";
+import { VERSION_HEX_STRING_ZERO } from "./contractRegistry";
 
 /**
  * Performs a regular deployment and updates the deployment information in deployments JSON file
  * @param contractName name of the contract to be deployed
- * @param deployer signer used to sign deploy transacciation
+ * @param deployer signer used to sign deploy transaction
  * @param args arguments to use in the constructor
  */
 export const deploy = async (contractName: string, deployer: Signer, args: unknown[]) => {
@@ -45,7 +52,7 @@ export const deploy = async (contractName: string, deployer: Signer, args: unkno
 /**
  * Performs an upgradeable deployment and updates the deployment information in deployments JSON file
  * @param contractName name of the contract to be deployed
- * @param deployer signer used to sign deploy transacciation
+ * @param deployer signer used to sign deploy transaction
  * @param args arguments to use in the initializer
  * @param proxyAdmin (optional ? PROXY_ADMIN_ADDRESS) custom proxy admin address
  */
@@ -137,9 +144,47 @@ export const deployUpgradeable = async (
 };
 
 /**
+ * Performs an upgradeable deployment and registers a contract record in the contract registry
+ * @param contractName name of the contract to be deployed
+ * @param deployer signer used to sign deploy transaction
+ * @param args arguments to use in the initializer
+ * @param contractRegistryAddr (optional) [ENV.DEPLOY.contractRegistry.address || defaultInDeployer] Address to the contract registry to be used
+ * @param contractDeployerAddr (optional) [ENV.DEPLOY.contractDeployer.address] Address to the contract deployer to be used
+ */
+export const deployWithDeployer = async (
+  contractName: string,
+  deployer: Signer,
+  args: unknown[],
+  contractRegistryAddr: string = ENV.DEPLOY.contractRegistry.address || ADDR_ZERO,
+  contractDeployerAddr: string = ENV.DEPLOY.contractDeployer.address
+) => {
+  const ethers = ghre.ethers;
+  const provider = ethers.provider;
+  const factory = ethers.getContractFactory(contractName);
+  const contractDeployer = IContractDeployer__factory.connect(contractDeployerAddr, deployer);
+
+  // -- encode function params for TUP
+  let initData: string;
+  if (args.length > 0) {
+    initData = (await factory).interface.encodeFunctionData("initialize", [...args]);
+  } else {
+    initData = (await factory).interface._encodeParams([], []);
+  }
+  contractDeployer.deployContract(
+    contractRegistryAddr,
+    await provider.getCode(contractName),
+    initData,
+    new Uint8Array(),
+    toUtf8Bytes(contractName),
+    new Uint8Array(2),
+    GAS_OPT
+  );
+};
+
+/**
  * Upgrades the logic Contract of an upgradeable deployment and updates the deployment information in deployments JSON file
  * @param contractName name of the contract to be upgraded
- * @param deployer signer used to sign transacciations
+ * @param deployer signer used to sign transactions
  * @param args arguments to use in the initializer
  * @param proxy (optional ? undefined) address to identifie multiple contracts with the same name and network
  * @param proxyAdmin (optional ? PROXY_ADMIN_ADDRESS) custom proxy admin address
@@ -218,6 +263,81 @@ export const upgrade = async (
   contractDeployment.byteCodeHash = keccak256(factory.bytecode);
   contractDeployment.upgradeTimestamp = await timestamp;
   await saveDeployment(contractDeployment);
+};
+
+/**
+ * Performs an upgrade to an upgradeable deployment and updates the contract record in the contract registry
+ * @param contractName name of the contract to be upgraded
+ * @param deployer signer used to sign upgrade transaction
+ * @param args arguments to use in the initializer
+ * @param contractRegistryAddr (optional) [ENV.DEPLOY.contractRegistry.address || defaultInDeployer] Address to the contract registry to be used
+ * @param contractDeployerAddr (optional) [ENV.DEPLOY.contractDeployer.address] Address to the contract deployer to be used
+ */
+export const upgradeWithDeployer = async (
+  contractName: string,
+  deployer: Wallet,
+  args: unknown[],
+  contractRegistryAddr: string = ENV.DEPLOY.contractRegistry.address || ADDR_ZERO,
+  contractDeployerAddr: string = ENV.DEPLOY.contractDeployer.address
+) => {
+  const ethers = ghre.ethers;
+  const provider = ethers.provider;
+  const factory = ethers.getContractFactory(contractName);
+  const contractRegistry = IContractRegistry__factory.connect(contractRegistryAddr, deployer);
+  const contractDeployer = IContractDeployer__factory.connect(contractDeployerAddr, deployer);
+  // get contract record before upgrade
+  const getResponse = await contractRegistry.getRecordByName(contractName, deployer.address);
+  if (!getResponse.found) {
+    throw new Error("Cannot find contract record " + contractName + " in " + contractRegistryAddr);
+  }
+  // -- encode function params for TUP
+  let initData: string;
+  if (args.length > 0) {
+    initData = (await factory).interface.encodeFunctionData("initialize", [...args]);
+  } else {
+    initData = (await factory).interface._encodeParams([], []);
+  }
+  contractDeployer.upgradeContract(
+    contractRegistryAddr,
+    getResponse.record.proxy,
+    await provider.getCode(contractName),
+    initData,
+    new Uint8Array(),
+    new Uint8Array(2),
+    GAS_OPT
+  );
+};
+
+export const initOnChainDeployments = async (
+  deployer: Wallet,
+  onlyDeployer: boolean = false,
+  defaultContractRegistry: string = ENV.DEPLOY.contractRegistry.address
+) => {
+  let contractRegistry: ContractRegistry | undefined;
+  if (!onlyDeployer) {
+    contractRegistry = await (
+      await new ContractRegistry__factory(deployer).deploy(GAS_OPT)
+    ).deployed();
+    await contractRegistry.initialize(
+      ADDR_ZERO,
+      toUtf8Bytes(""),
+      VERSION_HEX_STRING_ZERO,
+      keccak256(ContractRegistry__factory.bytecode),
+      GAS_OPT
+    );
+  }
+  const contractDeployer = await (
+    await new ContractDeployer__factory(deployer).deploy(GAS_OPT)
+  ).deployed();
+  await contractDeployer.initialize(
+    contractRegistry ? contractRegistry.address : defaultContractRegistry,
+    GAS_OPT
+  );
+
+  return {
+    contractRegistry: contractRegistry ? contractRegistry.address : undefined,
+    contractDeployer: contractDeployer.address,
+  };
 };
 
 /**
