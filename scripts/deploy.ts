@@ -4,7 +4,7 @@ import { ADDR_ZERO, GAS_OPT, ghre } from "./utils";
 import { isAddress, keccak256, toUtf8Bytes } from "ethers/lib/utils";
 import { TransactionReceipt } from "@ethersproject/providers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { Contract, PopulatedTransaction, Wallet } from "ethers";
+import { Contract, Wallet } from "ethers";
 import { Signer } from "@ethersproject/abstract-signer";
 import {
   INetworkDeployment,
@@ -17,7 +17,6 @@ import {
   ContractRegistry,
   ContractRegistry__factory,
   IContractDeployer__factory,
-  IContractRegistry,
   IContractRegistry__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
@@ -73,7 +72,7 @@ export const deployUpgradeable = async (
       deployer
     )) as ProxyAdmin;
   } else if (proxyAdmin && typeof proxyAdmin == "string") {
-    throw new Error("String provided as Proxy Admin's address is not an address");
+    throw new Error("String provided as Proxy Admin's address is not a valid address");
   } else if (!proxyAdmin && ENV.DEPLOY.proxyAdmin.address) {
     proxyAdmin = (await ethers.getContractAt(
       ENV.DEPLOY.proxyAdmin.name,
@@ -320,7 +319,7 @@ export const initOnChainDeployments = async (
     ).deployed();
     await contractRegistry.initialize(
       ADDR_ZERO,
-      toUtf8Bytes(""),
+      new Uint8Array(32),
       VERSION_HEX_STRING_ZERO,
       keccak256(ContractRegistry__factory.bytecode),
       GAS_OPT
@@ -333,7 +332,7 @@ export const initOnChainDeployments = async (
     contractRegistry ? contractRegistry.address : defaultContractRegistry,
     GAS_OPT
   );
-
+  // TODO: save this in deployments file
   return {
     contractRegistry: contractRegistry ? contractRegistry.address : undefined,
     contractDeployer: contractDeployer.address,

@@ -41,11 +41,11 @@ let DEPLOY = {
   },
   contractRegistry: {
     name: "ContractRegistry",
-    address: "0x8aC971aBdF7F3465E4786aA2E0d3A07f40316c9D"
+    address: "0x931F46A080A3460467a0f991C70bb5033e546c3b"
   },
   contractDeployer: {
     name: "ContractDeployer",
-    address: "0x8aC971aBdF7F3465E4786aA2E0d3A07f40316c9D"
+    address: "0xC4De944749c06B9CD4e15C3AdC7A0D55ab173E24"
   },
 };
 

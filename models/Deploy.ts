@@ -48,6 +48,8 @@ export interface INetworkDeployment {
     chainId: number | string;
   };
   smartContracts: {
+    contractRegistry?: IRegularDeployment | IUpgradeDeployment;
+    contractDeployer?: IRegularDeployment | IUpgradeDeployment;
     proxyAdmins?: IRegularDeployment[];
     contracts: (IUpgradeDeployment | IRegularDeployment)[];
   };

@@ -29,20 +29,23 @@ export interface ExampleOwnerInterface extends utils.Interface {
   functions: {
     "changeOwner(address)": FunctionFragment;
     "getOwner()": FunctionFragment;
+    "initialize(address)": FunctionFragment;
   };
 
   getFunction(
-    nameOrSignatureOrTopic: "changeOwner" | "getOwner"
+    nameOrSignatureOrTopic: "changeOwner" | "getOwner" | "initialize"
   ): FunctionFragment;
 
   encodeFunctionData(functionFragment: "changeOwner", values: [string]): string;
   encodeFunctionData(functionFragment: "getOwner", values?: undefined): string;
+  encodeFunctionData(functionFragment: "initialize", values: [string]): string;
 
   decodeFunctionResult(
     functionFragment: "changeOwner",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "getOwner", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "initialize", data: BytesLike): Result;
 
   events: {
     "OwnerSet(address,address)": EventFragment;
@@ -92,6 +95,11 @@ export interface ExampleOwner extends BaseContract {
     ): Promise<ContractTransaction>;
 
     getOwner(overrides?: CallOverrides): Promise<[string]>;
+
+    initialize(
+      firstOwner: string,
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<ContractTransaction>;
   };
 
   changeOwner(
@@ -101,10 +109,17 @@ export interface ExampleOwner extends BaseContract {
 
   getOwner(overrides?: CallOverrides): Promise<string>;
 
+  initialize(
+    firstOwner: string,
+    overrides?: Overrides & { from?: string | Promise<string> }
+  ): Promise<ContractTransaction>;
+
   callStatic: {
     changeOwner(newOwner: string, overrides?: CallOverrides): Promise<void>;
 
     getOwner(overrides?: CallOverrides): Promise<string>;
+
+    initialize(firstOwner: string, overrides?: CallOverrides): Promise<void>;
   };
 
   filters: {
@@ -125,6 +140,11 @@ export interface ExampleOwner extends BaseContract {
     ): Promise<BigNumber>;
 
     getOwner(overrides?: CallOverrides): Promise<BigNumber>;
+
+    initialize(
+      firstOwner: string,
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<BigNumber>;
   };
 
   populateTransaction: {
@@ -134,5 +154,10 @@ export interface ExampleOwner extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     getOwner(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
+    initialize(
+      firstOwner: string,
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<PopulatedTransaction>;
   };
 }

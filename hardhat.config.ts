@@ -98,52 +98,6 @@ task("get-mnemonic", "Recover mnemonic phrase from an encrypted wallet")
 
 task("deploy", "Deploy smart contracts on '--network'")
   .addFlag("upgradeable", "Deploy as upgradeable")
-  .addPositionalParam(
-    "contractName",
-    "Name of the contract to deploy",
-    "Example_Storage",
-    types.string
-  )
-  .addParam(
-    "relativePath",
-    "Path relative to KEYSTORE_ROOT to store the wallets",
-    undefined,
-    types.string
-  )
-  .addParam("password", "Password to decrypt the wallet")
-  .addOptionalParam(
-    "proxyAdmin",
-    "Address of a deloyed Proxy Admin. Only if --upgradeable deployment",
-    undefined,
-    types.string
-  )
-  .addOptionalParam(
-    "args",
-    "Contract initialize function's arguments if any",
-    undefined,
-    types.json
-  )
-  .setAction(
-    async (
-      { upgradeable, contractName, relativePath, password, proxyAdmin, args },
-      hre: HardhatRuntimeEnvironment
-    ) => {
-      args = args ? args : [];
-      const signer = Wallet.fromEncryptedJsonSync(
-        await fs.readFile(ENV.KEYSTORE.root.concat(relativePath)),
-        password
-      ).connect(hre.ethers.provider);
-      setGHRE(hre);
-      if (upgradeable) {
-        await deployUpgradeable(contractName, signer, args, proxyAdmin);
-      } else {
-        await deploy(contractName, signer, args);
-      }
-    }
-  );
-
-task("deploy", "Deploy smart contracts on '--network'")
-  .addFlag("upgradeable", "Deploy as upgradeable")
   .addFlag("onChain", "Deploy as upgradeable using deployer and registry contracts")
   .addPositionalParam(
     "contractName",
