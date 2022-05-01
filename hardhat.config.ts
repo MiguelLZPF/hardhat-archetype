@@ -264,6 +264,37 @@ task("initOnChainDeployments", "initialize ContractRegistry and/or ContractDeplo
     }
   );
 
+task("listContractsDeployed", "[OnChain] Lists all contract records deployed on '--network'")
+  .addOptionalParam(
+    "contractRegistry",
+    "Contract Registry address to use, else deployments.json or ENV/config",
+    undefined,
+    types.string
+  )
+  .addOptionalParam(
+    "relativePath",
+    "Path relative to KEYSTORE_ROOT to retreive the wallet",
+    undefined,
+    types.string
+  )
+  .addOptionalParam("password", "Password to decrypt the wallet")
+  .setAction(
+    async ({ contractRegistry, relativePath, password }, hre: HardhatRuntimeEnvironment) => {
+      if (relativePath && password) {
+        const signer = Wallet.fromEncryptedJsonSync(
+          await fs.readFile(ENV.KEYSTORE.root.concat(relativePath)),
+          password
+        ).connect(hre.ethers.provider);
+      } else {
+        
+      }
+      
+      setGHRE(hre);
+      const result = await initOnChainDeployments(signer, onlyDeployer, defaultContractRegistry);
+      console.log("Result: ", result);
+    }
+  );
+
 task("quick-test", "Random quick testing function")
   .addOptionalParam(
     "args",

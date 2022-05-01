@@ -1,10 +1,10 @@
 import * as fs from "async-file";
 import { ENV } from "../configuration";
-import { ADDR_ZERO, GAS_OPT, ghre } from "./utils";
-import { isAddress, keccak256, toUtf8Bytes } from "ethers/lib/utils";
+import { GAS_OPT, ghre } from "./utils";
+import { isAddress, keccak256 } from "ethers/lib/utils";
 import { TransactionReceipt } from "@ethersproject/providers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { Contract, Wallet } from "ethers";
+import { Contract } from "ethers";
 import { Signer } from "@ethersproject/abstract-signer";
 import {
   INetworkDeployment,
@@ -13,16 +13,10 @@ import {
   networks,
 } from "../models/Deploy";
 import {
-  ContractDeployer__factory,
-  ContractRegistry,
-  ContractRegistry__factory,
-  IContractDeployer__factory,
-  IContractRegistry__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory as TUP__factory,
 } from "../typechain-types";
-import { VERSION_HEX_STRING_ZERO } from "./contractRegistry";
 
 /**
  * Performs a regular deployment and updates the deployment information in deployments JSON file
@@ -143,44 +137,6 @@ export const deployUpgradeable = async (
 };
 
 /**
- * Performs an upgradeable deployment and registers a contract record in the contract registry
- * @param contractName name of the contract to be deployed
- * @param deployer signer used to sign deploy transaction
- * @param args arguments to use in the initializer
- * @param contractRegistryAddr (optional) [ENV.DEPLOY.contractRegistry.address || defaultInDeployer] Address to the contract registry to be used
- * @param contractDeployerAddr (optional) [ENV.DEPLOY.contractDeployer.address] Address to the contract deployer to be used
- */
-export const deployWithDeployer = async (
-  contractName: string,
-  deployer: Signer,
-  args: unknown[],
-  contractRegistryAddr: string = ENV.DEPLOY.contractRegistry.address || ADDR_ZERO,
-  contractDeployerAddr: string = ENV.DEPLOY.contractDeployer.address
-) => {
-  const ethers = ghre.ethers;
-  const provider = ethers.provider;
-  const factory = ethers.getContractFactory(contractName);
-  const contractDeployer = IContractDeployer__factory.connect(contractDeployerAddr, deployer);
-
-  // -- encode function params for TUP
-  let initData: string;
-  if (args.length > 0) {
-    initData = (await factory).interface.encodeFunctionData("initialize", [...args]);
-  } else {
-    initData = (await factory).interface._encodeParams([], []);
-  }
-  contractDeployer.deployContract(
-    contractRegistryAddr,
-    await provider.getCode(contractName),
-    initData,
-    new Uint8Array(),
-    toUtf8Bytes(contractName),
-    new Uint8Array(2),
-    GAS_OPT
-  );
-};
-
-/**
  * Upgrades the logic Contract of an upgradeable deployment and updates the deployment information in deployments JSON file
  * @param contractName name of the contract to be upgraded
  * @param deployer signer used to sign transactions
@@ -265,88 +221,17 @@ export const upgrade = async (
 };
 
 /**
- * Performs an upgrade to an upgradeable deployment and updates the contract record in the contract registry
- * @param contractName name of the contract to be upgraded
- * @param deployer signer used to sign upgrade transaction
- * @param args arguments to use in the initializer
- * @param contractRegistryAddr (optional) [ENV.DEPLOY.contractRegistry.address || defaultInDeployer] Address to the contract registry to be used
- * @param contractDeployerAddr (optional) [ENV.DEPLOY.contractDeployer.address] Address to the contract deployer to be used
- */
-export const upgradeWithDeployer = async (
-  contractName: string,
-  deployer: Wallet,
-  args: unknown[],
-  contractRegistryAddr: string = ENV.DEPLOY.contractRegistry.address || ADDR_ZERO,
-  contractDeployerAddr: string = ENV.DEPLOY.contractDeployer.address
-) => {
-  const ethers = ghre.ethers;
-  const provider = ethers.provider;
-  const factory = ethers.getContractFactory(contractName);
-  const contractRegistry = IContractRegistry__factory.connect(contractRegistryAddr, deployer);
-  const contractDeployer = IContractDeployer__factory.connect(contractDeployerAddr, deployer);
-  // get contract record before upgrade
-  const getResponse = await contractRegistry.getRecordByName(contractName, deployer.address);
-  if (!getResponse.found) {
-    throw new Error("Cannot find contract record " + contractName + " in " + contractRegistryAddr);
-  }
-  // -- encode function params for TUP
-  let initData: string;
-  if (args.length > 0) {
-    initData = (await factory).interface.encodeFunctionData("initialize", [...args]);
-  } else {
-    initData = (await factory).interface._encodeParams([], []);
-  }
-  contractDeployer.upgradeContract(
-    contractRegistryAddr,
-    getResponse.record.proxy,
-    await provider.getCode(contractName),
-    initData,
-    new Uint8Array(),
-    new Uint8Array(2),
-    GAS_OPT
-  );
-};
-
-export const initOnChainDeployments = async (
-  deployer: Wallet,
-  onlyDeployer: boolean = false,
-  defaultContractRegistry: string = ENV.DEPLOY.contractRegistry.address
-) => {
-  let contractRegistry: ContractRegistry | undefined;
-  if (!onlyDeployer) {
-    contractRegistry = await (
-      await new ContractRegistry__factory(deployer).deploy(GAS_OPT)
-    ).deployed();
-    await contractRegistry.initialize(
-      ADDR_ZERO,
-      new Uint8Array(32),
-      VERSION_HEX_STRING_ZERO,
-      keccak256(ContractRegistry__factory.bytecode),
-      GAS_OPT
-    );
-  }
-  const contractDeployer = await (
-    await new ContractDeployer__factory(deployer).deploy(GAS_OPT)
-  ).deployed();
-  await contractDeployer.initialize(
-    contractRegistry ? contractRegistry.address : defaultContractRegistry,
-    GAS_OPT
-  );
-  // TODO: save this in deployments file
-  return {
-    contractRegistry: contractRegistry ? contractRegistry.address : undefined,
-    contractDeployer: contractDeployer.address,
-  };
-};
-
-/**
  * Saves a deployments JSON file with the updated deployments information
  * @param deployment deployment object to added to deplyments file
  * @param proxyAdmin (optional ? PROXY_ADMIN_ADDRESS) custom proxy admin address
+ * @param contractRegistry (optional) [undefined] OnChain Registry contract deployment
+ * @param contractDeployer (optional) [undefined] OnChain Deployer contract deployment
  */
 export const saveDeployment = async (
-  deployment: IRegularDeployment | IUpgradeDeployment,
-  proxyAdmin?: IRegularDeployment
+  deployment?: IRegularDeployment | IUpgradeDeployment,
+  proxyAdmin?: IRegularDeployment,
+  contractRegistry?: IRegularDeployment | IUpgradeDeployment,
+  contractDeployer?: IRegularDeployment | IUpgradeDeployment
 ) => {
   let { networkIndex, netDeployment, deployments } = await getActualNetDeployment();
   // if no deployed yet in this network
@@ -361,14 +246,23 @@ export const saveDeployment = async (
         chainId: network.chainId,
       },
       smartContracts: {
+        contractRegistry: contractRegistry ? contractRegistry : undefined,
+        contractDeployer: contractDeployer ? contractDeployer : undefined,
         proxyAdmins: proxyAdmin ? [proxyAdmin] : [],
-        contracts: [deployment],
+        contracts: deployment ? [deployment] : [],
       },
     };
     // add to network deployments array
     deployments.push(netDeployment);
   } else if (netDeployment) {
     // if deployed before in this network
+    //* OnChain Contract Registry and Deployer
+    if (contractRegistry) {
+      netDeployment.smartContracts.contractRegistry = contractRegistry;
+    }
+    if (contractDeployer) {
+      netDeployment.smartContracts.contractDeployer = contractDeployer;
+    }
     //* proxy admin
     if (proxyAdmin && netDeployment.smartContracts.proxyAdmins) {
       // if new proxyAdmin and some proxy admin already registered
@@ -387,17 +281,19 @@ export const saveDeployment = async (
       netDeployment.smartContracts.proxyAdmins = [proxyAdmin];
     }
     //* smart contract
-    const upgradeThis = netDeployment.smartContracts.contracts.findIndex(
-      (contract) =>
-        (contract as IUpgradeDeployment).proxy &&
-        (contract as IUpgradeDeployment).proxy == (deployment as IUpgradeDeployment).proxy
-    );
-    if (upgradeThis != -1) {
-      // found, update upgradeable deployment
-      netDeployment.smartContracts.contracts[upgradeThis] = deployment;
-    } else {
-      // not found or not upgradeable
-      netDeployment.smartContracts.contracts.push(deployment);
+    if (deployment) {
+      const upgradeThis = netDeployment.smartContracts.contracts.findIndex(
+        (contract) =>
+          (contract as IUpgradeDeployment).proxy &&
+          (contract as IUpgradeDeployment).proxy == (deployment as IUpgradeDeployment).proxy
+      );
+      if (upgradeThis != -1) {
+        // found, update upgradeable deployment
+        netDeployment.smartContracts.contracts[upgradeThis] = deployment;
+      } else {
+        // not found or not upgradeable
+        netDeployment.smartContracts.contracts.push(deployment);
+      }
     }
     // replace (update) network deployment
     deployments[networkIndex] = netDeployment;
@@ -412,7 +308,7 @@ export const saveDeployment = async (
  * @param address address that identifies a Proxy Admin in a network deployment
  * @returns Proxy Admin Deployment object
  */
-const getProxyAdminDeployment = async (address?: string) => {
+export const getProxyAdminDeployment = async (address?: string) => {
   const { networkIndex, netDeployment, deployments } = await getActualNetDeployment();
 
   if (networkIndex == undefined || !netDeployment) {
@@ -438,7 +334,7 @@ const getProxyAdminDeployment = async (address?: string) => {
  * @param addressOrName address or name that identifies a contract in a network deployment
  * @returns Contract Deployment object
  */
-const getContractDeployment = async (addressOrName: string) => {
+export const getContractDeployment = async (addressOrName: string) => {
   const { networkIndex, netDeployment, deployments } = await getActualNetDeployment();
 
   if (networkIndex == undefined || !netDeployment) {
@@ -465,7 +361,7 @@ const getContractDeployment = async (addressOrName: string) => {
  * @param hre (optional | ghre) use custom HRE
  * @returns Network Deployment object
  */
-const getActualNetDeployment = async (hre?: HardhatRuntimeEnvironment) => {
+export const getActualNetDeployment = async (hre?: HardhatRuntimeEnvironment) => {
   const provider = hre ? hre.ethers.provider : ghre.ethers.provider;
   const network = networks.get(
     provider.network ? provider.network.chainId : (await provider.getNetwork()).chainId
@@ -502,7 +398,7 @@ const getActualNetDeployment = async (hre?: HardhatRuntimeEnvironment) => {
  * @param hre (optional | ghre) use custom HRE
  * @returns ISO string date time representation of the contract timestamp
  */
-const getContractTimestamp = async (
+export const getContractTimestamp = async (
   contract: Contract,
   deployTxHash?: string,
   hre?: HardhatRuntimeEnvironment
